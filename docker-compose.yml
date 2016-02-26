@@ -1,0 +1,115 @@
+#############################################################################
+# A new default web stack - using docker
+# 
+# Based on the ideas in Simon Willison's talk:
+# https://www.youtube.com/watch?v=P68zXJ_ACCE
+# 
+# Usage (for development):
+#  Install docker-toolbox (or docker-engine + docker-compose)
+#  Create a django project
+#  docker-compose up -d
+#  open https://localhost/
+#############################################################################
+
+#############################################################################
+# nginx reverse proxy
+# 
+# This is the entry point for the stack, responsible for SSL termination and
+# access logs
+#############################################################################
+proxy:
+  container_name: proxy
+  image: jwilder/nginx-proxy:latest
+  restart: always
+  volumes: 
+    - /var/run/docker.sock:/tmp/docker.sock:ro
+    # For SSL, bind certs path to /etc/nginx/certs:ro
+  ports:
+    - 80:80
+
+#############################################################################
+# varnish web cache
+# 
+# varnish will cache HTTP content according to the rules in the caching 
+# headers. It can be configured to perform other caching tasks such as
+# micro-caching, always caching certain types of content, etc.
+#############################################################################
+varnish:
+  container_name: varnish
+  #image: dockerimages/varnish:latest
+  #image: jacksoncage/varnish-docker:latest
+  #image: tutum/varnish:4.0
+  image: eeacms/varnish:4s
+  restart: always
+  links:
+    - loadbalancer1:node1
+  ports:
+    - 6081:6081
+  environment:
+    #- VIRTUAL_HOST=localhost
+    - VIRTUAL_PORT=6081
+
+#############################################################################
+# haproxy load balancer
+# 
+# Distribute load to application instances.
+# This works well but it does require a restart to pick up new app instances.
+#############################################################################
+loadbalancer1:
+  container_name: lb1
+  #image: haproxy:1.6.3
+  image: tutum/haproxy:0.2.4.1
+  restart: always
+  links:
+    - app:app
+  # Useful for debugging
+  #ports:
+  #  - 8010:80
+  # Useful for debugging
+  #volumes:
+  #  - haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+#############################################################################
+# memcached in-memory cache
+# 
+# Not used here. Use redis or couchbase instead.
+#############################################################################
+#memcached:
+#  container_name: memcached
+#  image: memcached
+#  # Use 64MB
+#  command: memcached -m 64
+
+#############################################################################
+# redis in-memory data structure service
+# 
+# Use for content caching, queues, fast set unions, top 10 lists, ...
+#############################################################################
+redis:
+  container_name: redis
+  image: redis:3.0.7-alpine 
+
+#############################################################################
+# Postgresql database
+# 
+# Main data storage component for django. This is the bit you back up!
+#############################################################################
+db:
+  container_name: db
+  image: postgres:9.5.1
+  environment:
+    - POSTGRES_USER=db
+    - POSTGRES_PASSWORD=secret
+
+#############################################################################
+# Your application code
+# 
+# Uses django (but could be rails, tomcat, php, ...)
+#############################################################################
+app:
+  container_name: app
+  build: .
+  # Useful for debugging
+  #ports:
+  #  - 8000:8000
+
