@@ -5,10 +5,10 @@
 # https://www.youtube.com/watch?v=P68zXJ_ACCE
 # 
 # Usage (for development):
-#  Install docker-toolbox (or docker-engine + docker-compose)
-#  Create a django project
-#  docker-compose up -d
-#  open https://localhost/
+#    Install docker-toolbox (or docker-engine + docker-compose)
+#    Create a django project
+#    docker-compose up -d
+#    open https://localhost/
 #############################################################################
 
 #############################################################################
@@ -18,14 +18,34 @@
 # access logs
 #############################################################################
 proxy:
-  container_name: proxy
-  image: jwilder/nginx-proxy:latest
-  restart: always
-  volumes: 
-    - /var/run/docker.sock:/tmp/docker.sock:ro
-    # For SSL, bind certs path to /etc/nginx/certs:ro
-  ports:
-    - 80:80
+    container_name: proxy
+    image: jwilder/nginx-proxy:latest
+    restart: always
+    volumes: 
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+        # Note: use letsencrypt container to maintain certs
+        # These volumes are required for that to work
+        - /srv/docker/letsencrypt:/etc/nginx/certs:ro
+        - /etc/nginx/vhost.d
+        - /usr/share/nginx/html
+    ports:
+        - 80:80
+        - 443:443
+
+#############################################################################
+# letsencrypt client service
+# 
+# auto-generate and maintain SSL certs, adds to nginx-proxy
+#############################################################################
+letsencrypt:
+    container_name: letsencrypt
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    restart: always
+    volumes:
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /srv/docker/letsencrypt:/etc/nginx/certs:rw
+    volumes_from:
+        - proxy
 
 #############################################################################
 # varnish web cache
@@ -35,22 +55,24 @@ proxy:
 # micro-caching, always caching certain types of content, etc.
 #############################################################################
 varnish:
-  container_name: varnish
-  #image: dockerimages/varnish:latest
-  #image: jacksoncage/varnish-docker:latest
-  #image: tutum/varnish:4.0
-  image: eeacms/varnish:4s
-  restart: always
-  links:
-    - loadbalancer1:node1
-  # Useful for debugging
-  #ports:
-  #  - 6081:6081
-  expose:
-    - 6081
-  environment:
-    - VIRTUAL_HOST=mysite
-    - VIRTUAL_PORT=6081
+    container_name: varnish
+    #image: dockerimages/varnish:latest
+    #image: jacksoncage/varnish-docker:latest
+    #image: tutum/varnish:4.0
+    image: eeacms/varnish:4s
+    restart: always
+    links:
+        - loadbalancer1:node1
+    # Useful for debugging
+    #ports:
+    #    - 6081:6081
+    expose:
+        - 6081
+    environment:
+        - VIRTUAL_HOST=mysite.example.com
+        - VIRTUAL_PORT=6081
+        - LETSENCRYPT_HOST=mysite.example.com
+        - LETSENCRYPT_EMAIL=mysite@example.com
 
 #############################################################################
 # haproxy load balancer
@@ -59,18 +81,18 @@ varnish:
 # This works well but it does require a restart to pick up new app instances.
 #############################################################################
 loadbalancer1:
-  container_name: lb1
-  #image: haproxy:1.6.3
-  image: tutum/haproxy:0.2.4.1
-  restart: always
-  links:
-    - app:app
-  # Useful for debugging
-  #ports:
-  #  - 8010:80
-  # Useful for debugging
-  #volumes:
-  #  - haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    container_name: lb1
+    #image: haproxy:1.6.3
+    image: tutum/haproxy:0.2.4.1
+    restart: always
+    links:
+        - app:app
+    # Useful for debugging
+    #ports:
+    #    - 8010:80
+    # Useful for debugging
+    #volumes:
+    #    - haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
 #############################################################################
 # memcached in-memory cache
@@ -78,10 +100,10 @@ loadbalancer1:
 # Not used here. Use redis or couchbase instead.
 #############################################################################
 #memcached:
-#  container_name: memcached
-#  image: memcached
-#  # Use 64MB
-#  command: memcached -m 64
+#    container_name: memcached
+#    image: memcached
+#    # Use 64MB
+#    command: memcached -m 64
 
 #############################################################################
 # redis in-memory data structure service
@@ -89,8 +111,8 @@ loadbalancer1:
 # Use for content caching, queues, fast set unions, top 10 lists, ...
 #############################################################################
 redis:
-  container_name: redis
-  image: redis:3.0.7-alpine 
+    container_name: redis
+    image: redis:3.0.7-alpine 
 
 #############################################################################
 # SOLR
@@ -98,8 +120,8 @@ redis:
 # Search...
 #############################################################################
 solr:
-  container_name: solr
-  image: solr:5.5.0
+    container_name: solr
+    image: solr:5.5.0
 
 #############################################################################
 # Celery
@@ -107,12 +129,12 @@ solr:
 # Asynchronous background workers
 #############################################################################
 celery:
-  container_name: celery
-  image: celery:3.1.20
-  links:
-    - celeryq:redis
-  environment:
-    - CELERY_BROKER_URL=redis://redis
+    container_name: celery
+    image: celery:3.1.20
+    links:
+        - celeryq:redis
+    environment:
+        - CELERY_BROKER_URL=redis://redis
 
 #############################################################################
 # Celery's queue - redis back-end
@@ -120,8 +142,8 @@ celery:
 # Queue for asynchronous background tasks
 #############################################################################
 celeryq:
-  container_name: celeryq
-  image: redis:3.0.7-alpine 
+    container_name: celeryq
+    image: redis:3.0.7-alpine 
 
 #############################################################################
 # Postgresql database
@@ -129,11 +151,11 @@ celeryq:
 # Main data storage component for django. This is the bit you back up!
 #############################################################################
 db:
-  container_name: db
-  image: postgres:9.5.1
-  environment:
-    - POSTGRES_USER=db
-    - POSTGRES_PASSWORD=secret
+    container_name: db
+    image: postgres:9.5.1
+    environment:
+        - POSTGRES_USER=db
+        - POSTGRES_PASSWORD=secret
 
 #############################################################################
 # Your application code
@@ -141,12 +163,12 @@ db:
 # Uses django (but could be rails, tomcat, php, ...)
 #############################################################################
 app:
-  container_name: app
-  build: .
-  # Useful for debugging
-  #ports:
-  #  - 8000:8000
-  links:
-    - db:db
-    - redis:redis
-    - solr:solr
+    container_name: app
+    build: .
+    # Useful for debugging
+    #ports:
+    #    - 8000:8000
+    links:
+        - db:db
+        - redis:redis
+        - solr:solr
