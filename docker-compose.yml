@@ -56,9 +56,6 @@ letsencrypt:
 #############################################################################
 varnish:
     container_name: varnish
-    #image: dockerimages/varnish:latest
-    #image: jacksoncage/varnish-docker:latest
-    #image: tutum/varnish:4.0
     image: eeacms/varnish:4s
     restart: always
     links:
@@ -66,6 +63,9 @@ varnish:
     # Useful for debugging
     #ports:
     #    - 6081:6081
+    # For creating a custom config
+    #volumes:
+    #    - /srv/docker/varnish:/etc/varnish/conf.d
     expose:
         - 6081
     environment:
@@ -82,7 +82,6 @@ varnish:
 #############################################################################
 loadbalancer1:
     container_name: lb1
-    #image: haproxy:1.6.3
     image: tutum/haproxy:0.2.4.1
     restart: always
     links:
@@ -90,7 +89,7 @@ loadbalancer1:
     # Useful for debugging
     #ports:
     #    - 8010:80
-    # Useful for debugging
+    # For creating a custom config
     #volumes:
     #    - haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
@@ -153,6 +152,8 @@ celeryq:
 db:
     container_name: db
     image: postgres:9.5.1
+    volumes:
+        - /srv/docker/mysite_db:/var/lib/postgresql/data
     environment:
         - POSTGRES_USER=db
         - POSTGRES_PASSWORD=secret
@@ -168,7 +169,10 @@ app:
     # Useful for debugging
     #ports:
     #    - 8000:8000
+    volumes:
+        - .:/usr/src/app
     links:
         - db:db
         - redis:redis
         - solr:solr
+
