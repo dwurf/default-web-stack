@@ -1,7 +1,7 @@
 django-haystack
 django-waffle
 django-redis-cache
-psycopg
+psycopg2
 celery
 # TODO: https://sebest.github.io/post/protips-using-gunicorn-inside-a-docker-image/
 #gunicorn
