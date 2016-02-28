@@ -1,7 +1,5 @@
 django-haystack
-gutter
-gutter-glue
-gutter-django
+django-waffle
 django-redis-cache
 psycopg
 celery
