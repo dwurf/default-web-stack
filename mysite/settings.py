@@ -12,6 +12,44 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 
 import os
 
+# Read docker environment variables
+
+# DB environment variables - defaults
+# This container assumes its db container is called 'db'
+DB_NAME='db'
+DB_USER='db'
+DB_PASS='secret'
+DB_HOST='postgres'
+DB_PORT=5432
+
+# Order of environment variables to check
+ENV_ORDER = {
+    'DB_NAME': ['DB_ENV_POSTGRES_DB', 
+                'DB_ENV_POSTGRES_USER',
+                'DB_DB',
+                'DB_USER',
+                ],
+    'DB_USER': ['DB_ENV_POSTGRES_USER',
+                'DB_USER',
+                ],
+    'DB_PASS': ['DB_ENV_POSTGRES_PASSWORD',
+                'DB_PASS',
+                ],
+    'DB_HOST': ['DB_PORT_5432_TCP_ADDR',
+                'DB_HOST',
+                ],
+    'DB_PORT': ['DB_PORT_5432_TCP_PORT',
+                'DB_PORT',
+                ],
+}
+
+# Load into global settings vars
+for var in ENV_ORDER.keys():
+    for env in ENV_ORDER[var]:
+        if env in os.environ:
+            globals()[var] = os.environ[env] 
+            break
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -76,8 +114,12 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASS,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
     }
 }
 
