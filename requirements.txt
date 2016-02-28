@@ -1,1 +1,9 @@
 django-haystack
+gutter
+gutter-glue
+gutter-django
+django-redis-cache
+psycopg
+celery
+# TODO: https://sebest.github.io/post/protips-using-gunicorn-inside-a-docker-image/
+#gunicorn

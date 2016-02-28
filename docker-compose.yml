@@ -43,10 +43,13 @@ varnish:
   restart: always
   links:
     - loadbalancer1:node1
-  ports:
-    - 6081:6081
+  # Useful for debugging
+  #ports:
+  #  - 6081:6081
+  expose:
+    - 6081
   environment:
-    #- VIRTUAL_HOST=localhost
+    - VIRTUAL_HOST=mysite
     - VIRTUAL_PORT=6081
 
 #############################################################################
@@ -90,6 +93,37 @@ redis:
   image: redis:3.0.7-alpine 
 
 #############################################################################
+# SOLR
+# 
+# Search...
+#############################################################################
+solr:
+  container_name: solr
+  image: solr:5.5.0
+
+#############################################################################
+# Celery
+# 
+# Asynchronous background workers
+#############################################################################
+celery:
+  container_name: celery
+  image: celery:3.1.20
+  links:
+    - celeryq:redis
+  environment:
+    - CELERY_BROKER_URL=redis://redis
+
+#############################################################################
+# Celery's queue - redis back-end
+# 
+# Queue for asynchronous background tasks
+#############################################################################
+celeryq:
+  container_name: celeryq
+  image: redis:3.0.7-alpine 
+
+#############################################################################
 # Postgresql database
 # 
 # Main data storage component for django. This is the bit you back up!
@@ -112,4 +146,7 @@ app:
   # Useful for debugging
   #ports:
   #  - 8000:8000
-
+  links:
+    - db:db
+    - redis:redis
+    - solr:solr
